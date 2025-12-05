@@ -1,0 +1,24 @@
+# Dockerfile.frontend
+
+# 1. Imagen Base
+FROM python:3.11-slim
+
+# 2. Configuración
+ENV PYTHONUNBUFFERED 1
+WORKDIR /app
+
+# 3. Instalación de Dependencias
+COPY frontend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install -r requirements.txt
+RUN pip install requests # Asegurar que 'requests' esté instalado para la llamada HTTP
+
+# 4. Copiar el Código
+COPY frontend /app/frontend
+
+# 5. Exponer el Puerto por defecto de Streamlit
+EXPOSE 8501
+
+# 6. Comando de Ejecución
+# [Best Practice]: Use python -m for robust startup inside the container
+CMD ["python", "-m", "streamlit", "run", "frontend/app.py", "--server.port=8501", "--server.address=0.0.0.0"]

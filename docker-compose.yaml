@@ -1,0 +1,59 @@
+# docker-compose.yaml
+
+version: '3.8'
+
+# 1. Definición de los servicios (contenedores)
+services:
+  
+  # Servicio 1: Backend (FastAPI + Pandas)
+  backend:
+    # 1.1. Instrucción para construir la imagen
+    build:
+      context: . # Usa el directorio actual como contexto de construcción
+      dockerfile: Dockerfile.backend # Especifica el archivo Dockerfile a usar
+    
+    # 1.2. Mapeo de puertos: <Puerto local>:<Puerto del contenedor>
+    ports:
+      - "8000:8000"
+      
+    # 1.3. Conectar el archivo .env para las variables de configuración
+    # El archivo .env se cargará automáticamente en el contenedor
+    env_file:
+      - .env
+      
+    # 1.4. Nombre de red
+    networks:
+      - feedback-network
+      
+  # Servicio 2: Frontend (Streamlit)
+  frontend:
+    # 2.1. Instrucción para construir la imagen
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend
+      
+    # 2.2. Mapeo de puertos: <Puerto local>:<Puerto del contenedor>
+    ports:
+      - "8501:8501"
+      
+    # 2.3. Dependencia explícita
+    # El frontend debe esperar a que el backend esté listo antes de intentar iniciar
+    # [Best Practice]: Service Dependency
+    depends_on:
+      - backend 
+      
+    # 2.4. Overriding de la URL de la API
+    # Aquí es donde le decimos a Streamlit dónde encontrar la API
+    # En la red interna de Docker, el backend es accesible por su nombre de servicio ('backend')
+    environment:
+      API_URL: "http://backend:8000"
+      
+    # 2.5. Nombre de red
+    networks:
+      - feedback-network
+
+# 2. Definición de la red (Bridge Network)
+# Esto crea una red interna donde los servicios se comunican por nombre.
+networks:
+  feedback-network:
+    driver: bridge

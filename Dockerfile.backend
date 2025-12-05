@@ -1,0 +1,33 @@
+# Dockerfile.backend
+
+# 1. Imagen Base (Modern Python 3.11 Slim)
+# [Best Practice]: Use slim images for reduced size and attack surface
+FROM python:3.11-slim
+
+# 2. Variables de Entorno y Configuración
+ENV PYTHONDONTWRITEBYTECODE 1
+ENV PYTHONUNBUFFERED 1
+# Establecer el directorio de trabajo dentro del contenedor
+WORKDIR /app
+
+# 3. Instalación de Dependencias
+# Copiar el manifiesto de dependencias primero para aprovechar el caché de Docker
+# [Best Practice]: Leveraging Docker Cache Layers
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir --upgrade pip
+RUN pip install -r requirements.txt
+
+# 4. Copiar el Código
+# Copiar el código del backend (main.py, routers, services)
+COPY backend /app/backend
+# Copiar el archivo de configuración .env (solo variables NO secretas)
+COPY .env /app/.env
+
+# 5. Exponer el Puerto
+# Definir el puerto que el contenedor usará (el 8000 que definimos en .env)
+EXPOSE 8000
+
+# 6. Comando de Ejecución (Entrypoint)
+# Iniciar Uvicorn. Usamos la forma array (CMD ["comando", "argumento"])
+# [Best Practice]: Explicit CMD format
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]

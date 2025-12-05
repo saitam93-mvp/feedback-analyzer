@@ -1,0 +1,9 @@
+# Archivos generados por Python
+__pycache__/
+.venv/
+*.pyc
+
+# Archivos críticos: credenciales y configuración local
+# [Best Practice]: Secret Exclusion
+.env
+*.json

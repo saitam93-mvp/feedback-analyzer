@@ -1,0 +1,10 @@
+# .dockerignore
+__pycache__/
+*.pyc
+venv/
+.venv/
+.git/
+.gitignore
+.DS_Store
+# Excluir la carpeta de prueba local si existiera
+tests/
