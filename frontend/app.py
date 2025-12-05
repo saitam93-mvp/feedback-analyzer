@@ -5,7 +5,7 @@ from typing import List
 
 # [Best Practice]: Configuration (API URL)
 # Hardcodeamos la URL local por ahora; idealmente iría en un .env propio para el frontend
-API_URL = "http://127.0.0.1:8000/analysis/sentiment"
+API_URL = os.getenv("API_URL", "http://127.0.0.1:8000/analysis/sentiment")
 
 def run_analysis(feedback_list: List[str]):
     

@@ -1,10 +1,10 @@
-# .dockerignore
-__pycache__/
+# Ignorar archivos de entorno y secretos
+.env
+*.json
+**/*.json
+
+# Ignorar entorno virtual y cache
+.venv
+__pycache__
 *.pyc
-venv/
-.venv/
-.git/
-.gitignore
-.DS_Store
-# Excluir la carpeta de prueba local si existiera
-tests/
+.git
