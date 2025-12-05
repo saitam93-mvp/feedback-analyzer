@@ -6,6 +6,31 @@ from google.cloud import translate_v2 as translate
 from dotenv import load_dotenv
 import os
 
+def translate_text(text: str, target_language: str = 'en') -> str:
+    """Traduce un texto usando la API oficial de Google Cloud Translation."""
+
+    if not GCP_PROJECT_ID:
+         print("❌ [ERROR] GCP_PROJECT_ID no configurado.")
+         return text
+    
+    try:
+        result = translate_client.translate(
+            text,
+            target_language=target_language
+        )
+        
+        translated = result['translatedText']
+        
+        # [DEBUG 3] ¡Éxito! ¿Cuál fue el resultado?
+        print(f"✅ [DEBUG] Traducción exitosa: '{translated}'")
+        
+        return translated
+
+    except Exception as e:
+        # [DEBUG 4] ¡Fallo! Aquí veremos por qué
+        print(f"🔥 [ERROR CRÍTICO] Falló la traducción. Razón: {e}")
+        return text # Retorna el original si falla (Causa del 100% Neutral)
+
 # ----------------------------------------------------
 # 1. Configuración
 # [Best Practice]: Configuration Loading (dotenv)

@@ -1,87 +1,110 @@
-# frontend/app.py
-
-import os # <--- Nuevo Import
 import streamlit as st
 import requests
-import json
 import pandas as pd
+from typing import List
 
-# [Best Practice]: Configuration via Environment Variables (Cloud Ready)
-# Leer la variable de entorno API_URL. Usar http://localhost:8000 como fallback
-# para el desarrollo local sin Docker.
-API_URL = os.getenv("API_URL", "http://localhost:8000")
+# [Best Practice]: Configuration (API URL)
+# Hardcodeamos la URL local por ahora; idealmente iría en un .env propio para el frontend
+API_URL = "http://127.0.0.1:8000/analysis/sentiment"
 
-st.set_page_config(page_title="Feedback Analyzer MVP", layout="wide")
+def run_analysis(feedback_list: List[str]):
+    
+    # Prepara el payload con la estructura Pydantic esperada (FeedbackInput)
+    payload = {"feedbacks": feedback_list}
 
-## Encabezado y Health Check
-st.title(" Análisis de Sentimiento de Feedback 📊")
-st.subheader("MVP usando FastAPI + Pandas")
+    # [ACCION DE DEBUGGING TEMPORAL]
+    st.code(f"Payload enviado a FastAPI: {payload}") 
+    # [FIN ACCION DE DEBUGGING]
+    
+    try:
+        # Realiza la solicitud HTTP POST
+        response = requests.post(API_URL, json=payload, timeout=10)
 
-# Verificar el estado de la API con el health check que ya implementamos
-try:
-    health_response = requests.get(f"{API_URL}/")
-    if health_response.status_code == 200:
-        st.success(f"Backend API está **ONLINE** en {API_URL}")
-    else:
-        st.error(f"Backend API está DOWN o no responde (Status: {health_response.status_code})")
-except requests.exceptions.ConnectionError:
-    st.error(f"⚠️ ERROR DE CONEXIÓN: Asegúrate de que Uvicorn esté corriendo en la terminal en {API_URL}")
+        # [Best Practice]: Status Code Check
+        if response.status_code == 200:
+            results = response.json()
+            st.success("✅ Análisis Completo!")
+            return results
+        else:
+            st.error(f"❌ Error de la API: Código {response.status_code}")
+            st.error(response.json())
+            return None
+            
+    except requests.exceptions.ConnectionError:
+        st.error(f"⚠️ Error de Conexión: Asegúrate de que el backend (uvicorn) esté corriendo en {API_URL}.")
+        return None
+    except Exception as e:
+        st.error(f"⚠️ Error inesperado: {e}")
+        return None
 
+
+# --- Estructura de la Interfaz Streamlit ---
+st.set_page_config(layout="wide")
+
+st.title("🧠 Analizador de Feedback MVP")
 st.markdown("---")
 
-## Formulario de Entrada de Datos
-st.header("Ingresar Feedback")
-st.caption("Introduce una línea de feedback por campo.")
-
-# Campo de texto multi-línea en Streamlit
-feedback_input = st.text_area(
-    "Ingresa múltiples líneas de feedback aquí:",
-    height=150,
-    placeholder="Ej: El producto es genial.\nEj: Tuve un error, el soporte es lento.\nEj: El precio es neutral."
+# 1. Entrada de datos
+st.header("📝 Ingreso de Feedback (Uno por línea)")
+feedback_text = st.text_area(
+    "Pega aquí los comentarios:", 
+    height=200, 
+    value="La aplicación es rápida y eficiente.\nEl precio es un poco alto para mis necesidades.\nMe encanta la nueva interfaz, el UX es genial!"
 )
 
-if st.button("Analizar Feedback"):
-    # 1. Preprocesamiento: Convertir el texto en una lista de strings
-    # [Clean Code]: Filtering empty lines
-    feedbacks_list = [line.strip() for line in feedback_input.split('\n') if line.strip()]
-
-    if not feedbacks_list:
-        st.warning("Por favor, ingresa al menos una línea de feedback para analizar.")
+# 2. Botón de acción
+if st.button("Analizar Sentimiento", type="primary"):
+    
+    # [CORRECCIÓN DE LÓGICA DE PREPROCESAMIENTO]
+    
+    # 3. Preprocesamiento: 
+    # a) Divide por línea
+    raw_feedbacks = feedback_text.split('\n')
+    
+    # b) Limpia cada string (quita espacios, saltos de línea ocultos) y filtra líneas vacías
+    feedbacks_to_analyze = [
+        f.strip() 
+        for f in raw_feedbacks 
+        if f.strip() # Filtra si el string resultante está vacío
+    ]
+    
+    # -----------------------------------------------
+    
+    if not feedbacks_to_analyze:
+        st.warning("Por favor, introduce al menos un comentario.")
     else:
-        st.info(f"Enviando {len(feedbacks_list)} líneas de feedback al backend...")
+        # [ACCION DE DEBUGGING TEMPORAL RECONFIRMADA]
+        # Muestra el payload final que se enviará
+        st.code(f"DEBUG: Payload final enviado: {feedbacks_to_analyze}", language='python')
+        # [FIN ACCION DE DEBUGGING]
         
-        # 2. Construir el payload JSON
-        payload = {"feedbacks": feedbacks_list}
+        # Llamar a la API
+        metrics = run_analysis(feedbacks_to_analyze)
         
-        # 3. Llamada HTTP POST al backend (Client-Server Interaction)
-        try:
-            response = requests.post(f"{API_URL}/analyze/sentiment", json=payload)
-            response.raise_for_status() # Lanza una excepción para errores 4xx/5xx
-
-            # 4. Procesar la Respuesta
-            results = response.json()
-            metrics = results['metrics']
-
-            st.subheader("Resultados del Análisis:")
+        if metrics:
+            # 4. Mostrar Resultados (Visualización de datos)
+            st.header("📊 Resultados del Análisis Cuantitativo")
             
-            # Mostrar métricas en columnas (Layout Streamlit)
-            col1, col2, col3 = st.columns(3)
-            col1.metric("Positivo", f"{metrics['positive_percentage']:.2f}%")
-            col2.metric("Negativo", f"{metrics['negative_percentage']:.2f}%")
-            col3.metric("Neutral", f"{metrics['neutral_percentage']:.2f}%")
+            total = metrics.get('total_processed', 0)
+            
+            # Crear DataFrame simple para visualización
+            data = {
+                'Sentimiento': ['Positivo', 'Negativo', 'Neutral'],
+                'Porcentaje (%)': [
+                    metrics['positive_percentage'], 
+                    metrics['negative_percentage'], 
+                    metrics['neutral_percentage']
+                ]
+            }
+            df_results = pd.DataFrame(data)
 
-            # Crear un DataFrame simple para mostrar los datos procesados
-            st.markdown("---")
+            col1, col2 = st.columns([1, 2])
             
-            # 5. Generar un gráfico de barras
-            data_chart = pd.DataFrame(
-                {
-                    'Sentimiento': ['Positivo', 'Negativo', 'Neutral'],
-                    'Porcentaje': [metrics['positive_percentage'], metrics['negative_percentage'], metrics['neutral_percentage']]
-                }
-            )
-            st.bar_chart(data_chart.set_index('Sentimiento'))
-            
-        except requests.exceptions.RequestException as e:
-            st.error(f"Error al comunicarse con la API: {e}")
-            st.code(f"Asegúrate de que Uvicorn está corriendo y es accesible en {API_URL}")
+            with col1:
+                st.metric(label="Total de Comentarios Procesados", value=total)
+                st.dataframe(df_results, hide_index=True)
+                
+            with col2:
+                # Mostrar un gráfico de barras
+                st.subheader("Distribución de Sentimiento")
+                st.bar_chart(df_results.set_index('Sentimiento'))

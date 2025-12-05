@@ -1,39 +1,35 @@
-# backend/routers/analysis.py
-
-from typing import List
-from pydantic import BaseModel
 from fastapi import APIRouter
+from backend.schemas import FeedbackInput, AnalysisResult
+from backend.services.analyzer import analyze_feedback
+from typing import Dict
 
-# Importar la lógica de negocio (Domain Layer)
-from ..services.analyzer import analyze_feedback 
-
-# 1. Crear la instancia del Router
-# [Best Practice]: Namespacing / Routing Prefix
-# El prefix='/analyze' garantiza que todas las rutas definidas aquí comiencen con /analyze.
+# [Best Practice]: Router Definition
+# Usamos un APIRouter para agrupar endpoints relacionados (ej: /analysis)
 router = APIRouter(
-    prefix="/analyze",
-    tags=["analysis"] # Agrega el nombre del grupo para Swagger UI
+    prefix="/analysis",
+    tags=["Analysis"],
 )
 
-# 2. Definir el schema de datos de entrada
-# [Best Practice]: Explicit Request Body Schema
-class FeedbackRequest(BaseModel):
-    feedbacks: List[str]
-
-# 3. Implementación del Endpoint
-# Ya no es @app.post, ahora es @router.post
-@router.post("/sentiment", status_code=200)
-async def perform_sentiment_analysis(request_data: FeedbackRequest):
+# [Best Practice]: Async Endpoints (FastAPI standard)
+@router.post(
+    "/sentiment", 
+    response_model=AnalysisResult, 
+    status_code=200,
+    summary="Calcula el porcentaje de sentimientos (positivo, negativo, neutral) en un conjunto de feedback."
+)
+async def perform_sentiment_analysis(
+    data: FeedbackInput
+) -> Dict[str, float]:
     """
-    Recibe una lista de feedback y retorna un análisis de sentimiento en porcentajes.
+    Recibe una lista de comentarios de feedback, los traduce, aplica VADER 
+    y devuelve las métricas porcentuales.
     """
+    # 1. Extracción de datos tipados (Pydantic validation ya ocurrió)
+    feedbacks: List[str] = data.feedbacks
     
-    feedbacks = request_data.feedbacks
+    # 2. Llamada a la Lógica de Negocio (Separation of Concerns)
+    # Hacemos la llamada a la función que ya probamos en analyzer.py
+    results: Dict[str, float] = analyze_feedback(feedbacks)
     
-    # Delegación al Domain Layer
-    analysis_metrics = analyze_feedback(feedbacks)
-    
-    return {
-        "analysis_id": "temp-12345",
-        "metrics": analysis_metrics
-    }
+    # 3. Devolvemos el resultado (Pydantic lo valida y serializa automáticamente)
+    return results
