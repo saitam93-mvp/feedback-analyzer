@@ -1,7 +1,9 @@
 import streamlit as st
 import requests
 import pandas as pd
+import os
 from typing import List
+
 
 # [Best Practice]: Configuration (API URL)
 # Hardcodeamos la URL local por ahora; idealmente iría en un .env propio para el frontend
